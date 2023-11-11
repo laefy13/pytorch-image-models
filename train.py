@@ -13,6 +13,10 @@ NVIDIA CUDA specific speedups adopted from NVIDIA Apex examples
 (https://github.com/NVIDIA/apex/tree/master/examples/imagenet)
 
 Hacked together by / Copyright 2020 Ross Wightman (https://github.com/rwightman)
+
+python train.py $--data-dir ./resized_224 --class-map ./txt/all.txt --model EfficientNet~~ --input-size '(3,224,224)' --batch-size 32 --validation-batch-size 32 --opt rmsprop --momentum .9 --weight-decay 1e-5 --lr .256 --decay-epochs 2.4 --decay-rate .97
+
+testasdasds
 """
 import argparse
 import logging
@@ -26,6 +30,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 import torchvision.utils
+from torchprofile import profile_macs
 import yaml
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
@@ -37,6 +42,7 @@ from timm.models import create_model, safe_model_name, resume_checkpoint, load_c
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.utils import ApexScaler, NativeScaler
+from datetime import datetime
 
 try:
     from apex import amp
@@ -68,7 +74,14 @@ except ImportError as e:
 has_compile = hasattr(torch, 'compile')
 
 
+today=datetime.now()
+if not os.path.exists('./logs'):
+    os.mkdir('logs')
+logging.basicConfig(filename=f'./logs/log{today}',format='%(asctime)s %(message)s',filemode='w')
+
+
 _logger = logging.getLogger('train')
+_logger.setLevel(logging.DEBUG) 
 
 # The first arg parser parses out only the --config argument, this argument is used to
 # load a yaml file containing key-values that override the defaults for the main parser below
@@ -355,6 +368,9 @@ group.add_argument('--use-multi-epochs-loader', action='store_true', default=Fal
 group.add_argument('--log-wandb', action='store_true', default=False,
                    help='log training and validation metrics to wandb')
 
+#FLOPS 
+group.add_argument('--flops', type=float, default=None,
+                   help='flops in g frfr no cap on a stack  istg on g ')
 
 def _parse_args():
     # Do we have a config file to parse?
@@ -900,6 +916,14 @@ def train_one_epoch(
         def _forward():
             with amp_autocast():
                 output = model(input)
+
+                if batch_idx==0:
+                    flops = profile_macs(model, (input))
+                    print(f"FLOPs: {flops / 1e9} GFLOPs")
+                    _logger.info(f"FLOPs: {flops / 1e9} GFLOPs")
+
+                    if flops > args.flops:
+                        exit()
                 loss = loss_fn(output, target)
             if accum_steps > 1:
                 loss /= accum_steps

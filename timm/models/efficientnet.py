@@ -88,7 +88,8 @@ class EfficientNet(nn.Module):
             se_layer=None,
             drop_rate=0.,
             drop_path_rate=0.,
-            global_pool='avg'
+            global_pool='avg',
+            **kwargs
     ):
         super(EfficientNet, self).__init__()
         act_layer = act_layer or nn.ReLU
@@ -116,6 +117,7 @@ class EfficientNet(nn.Module):
             se_layer=se_layer,
             drop_path_rate=drop_path_rate,
         )
+        print('block args',block_args)
         self.blocks = nn.Sequential(*builder(stem_size, block_args))
         self.feature_info = builder.features
         head_chs = builder.in_chs
@@ -1565,10 +1567,12 @@ def spnasnet_100(pretrained=False, **kwargs) -> EfficientNet:
 
 @register_model
 def efficientnet_b0(pretrained=False, **kwargs) -> EfficientNet:
+    chann_mult = kwargs.get('chann_mult', 1.0) 
+    dep_mult = kwargs.get('dep_mult', 1.0)
     """ EfficientNet-B0 """
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'efficientnet_b0', channel_multiplier=chann_mult, depth_multiplier=dep_mult, pretrained=pretrained, **kwargs)
     return model
 
 

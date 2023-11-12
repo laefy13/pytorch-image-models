@@ -922,7 +922,8 @@ def train_one_epoch(
                     print(f"FLOPs: {flops / 1e9} GFLOPs")
                     _logger.info(f"FLOPs: {flops / 1e9} GFLOPs")
 
-                    if flops > args.flops:
+                    if (flops / 1e9) > args.flops:
+                        # print(flops,args.flops,'buh')
                         exit()
                 loss = loss_fn(output, target)
             if accum_steps > 1:

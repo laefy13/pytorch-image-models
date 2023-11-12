@@ -117,7 +117,7 @@ class EfficientNet(nn.Module):
             se_layer=se_layer,
             drop_path_rate=drop_path_rate,
         )
-        print('block args',block_args)
+        # print('block args',block_args)
         self.blocks = nn.Sequential(*builder(stem_size, block_args))
         self.feature_info = builder.features
         head_chs = builder.in_chs

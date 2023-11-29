@@ -185,7 +185,7 @@ def main():
         in_chans = args.in_chans
     elif args.input_size is not None:
         in_chans = args.input_size[0]
-
+    
     model = create_model(
         args.model,
         num_classes=args.num_classes,
@@ -194,6 +194,8 @@ def main():
         checkpoint_path=args.checkpoint,
         **args.model_kwargs,
     )
+    # print(model)
+    # exit()
     if args.num_classes is None:
         assert hasattr(model, 'num_classes'), 'Model must have `num_classes` attr if not set on cmd line/config.'
         args.num_classes = model.num_classes
@@ -245,6 +247,8 @@ def main():
     )
 
     to_label = None
+    # print(model)
+    # exit()
     if args.label_type in ('name', 'description', 'detail'):
         imagenet_subset = infer_imagenet_subset(model)
         if imagenet_subset is not None:
@@ -257,8 +261,9 @@ def main():
                 to_label = lambda x: dataset_info.index_to_description(x)
             to_label = np.vectorize(to_label)
         else:
-            _logger.error("Cannot deduce ImageNet subset from model, no labelling will be performed.")
-
+            _logger.error("Cannot deduce ImageNet subset from mod7el, no labelling will be performed.")
+    # print(to_label)
+    # exit()
     top_k = min(args.topk, args.num_classes)
     batch_time = AverageMeter()
     end = time.time()
@@ -273,7 +278,8 @@ def main():
                 output = model(input)
 
             if use_probs:
-                output = output.softmax(-1)
+                # output = output.softmax(-1)
+                output = output.sigmoid()
 
             if top_k:
                 output, indices = output.topk(top_k)
@@ -283,9 +289,9 @@ def main():
                 if to_label is not None:
                     np_labels = to_label(np_indices)
                     all_labels.append(np_labels)
-
+            # print('output',output)
             all_outputs.append(output.cpu().numpy())
-
+            # print('ao',all_outputs)
             # measure elapsed time
             batch_time.update(time.time() - end)
             end = time.time()
@@ -301,6 +307,12 @@ def main():
 
     output_col = args.output_col or ('prob' if use_probs else 'logit')
     data_dict = {args.filename_col: filenames}
+
+
+    # if all_labels is not None:
+    #     if all_labels.shape[-1] == 1:
+    #         all_labels = all_labels.squeeze(-1)
+    #     data_dict[args.label_col] = list(all_labels)
     if args.results_separate_col and all_outputs.shape[-1] > 1:
         if all_indices is not None:
             for i in range(all_indices.shape[-1]):
@@ -320,7 +332,9 @@ def main():
                 all_labels = all_labels.squeeze(-1)
             data_dict[args.label_col] = list(all_labels)
         if all_outputs.shape[-1] == 1:
+            print('buh',all_outputs)
             all_outputs = all_outputs.squeeze(-1)
+            print('duh',all_outputs)
         data_dict[output_col] = list(all_outputs)
 
     df = pd.DataFrame(data=data_dict)
@@ -343,9 +357,9 @@ def main():
     for fmt in args.results_format:
         save_results(df, results_filename, fmt)
 
-    print(f'--result')
-    print(df.set_index(args.filename_col).to_json(orient='index', indent=4))
-
+    # print(f'--result')
+    # print(df.set_index(args.filename_col).to_json(orient='index', indent=4))
+    # print(all_labels)
 
 def save_results(df, results_filename, results_format='csv', filename_col='filename'):
     results_filename += _FMT_EXT[results_format]

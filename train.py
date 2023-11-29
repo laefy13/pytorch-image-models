@@ -858,6 +858,32 @@ def main():
         
     torch.cuda.empty_cache()
 
+def binary_classification_metrics(predictions, targets):
+    """
+    Compute binary classification metrics.
+    Assumes binary classification (0 and 1).
+    """
+    # Convert to NumPy arrays
+    predictions = predictions.argmax(dim=1).cpu().numpy()
+    targets = targets.cpu().numpy()
+
+    # Calculate confusion matrix
+    # print(predictions)
+    # print(targets)
+    # exit()
+    
+    TP = ((predictions == 1) & (targets == 1)).sum()
+    FP = ((predictions == 1) & (targets == 0)).sum()
+    TN = ((predictions == 0) & (targets == 0)).sum()
+    FN = ((predictions == 0) & (targets == 1)).sum()
+
+    # Calculate metrics
+    precision = TP / (TP + FP) if (TP + FP) != 0 else 0
+    recall = TP / (TP + FN) if (TP + FN) != 0 else 0
+    specificity = TN / (TN + FP) if (TN + FP) != 0 else 0
+    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
+
+    return precision, recall, specificity, f1_score
 
 def train_one_epoch(
         epoch,
@@ -1040,6 +1066,12 @@ def validate(
     losses_m = utils.AverageMeter()
     top1_m = utils.AverageMeter()
     top5_m = utils.AverageMeter()
+    #precision, recall, specificity, f1_score, accuracy = binary_classification_metrics(predictions, targets)
+
+    prec_m = utils.AverageMeter()
+    rec_m = utils.AverageMeter()
+    spec_m = utils.AverageMeter()
+    f1_m = utils.AverageMeter()
 
     model.eval()
 
@@ -1064,10 +1096,11 @@ def validate(
                 if reduce_factor > 1:
                     output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
                     target = target[0:target.size(0):reduce_factor]
-                print(output)
+                # print(output)
                 loss = loss_fn(output, target)
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
-
+            
+            prec,rec,spec,f1 = binary_classification_metrics(output,target)
             if args.distributed:
                 reduced_loss = utils.reduce_tensor(loss.data, args.world_size)
                 acc1 = utils.reduce_tensor(acc1, args.world_size)
@@ -1077,7 +1110,11 @@ def validate(
 
             if device.type == 'cuda':
                 torch.cuda.synchronize()
-
+            
+            prec_m.update(prec, output.size(0))
+            rec_m.update(rec, output.size(0))
+            spec_m.update(spec, output.size(0))
+            f1_m.update(f1, output.size(0))
             losses_m.update(reduced_loss.item(), input.size(0))
             top1_m.update(acc1.item(), output.size(0))
             top5_m.update(acc5.item(), output.size(0))
@@ -1092,6 +1129,10 @@ def validate(
                     f'Loss: {losses_m.val:>7.3f} ({losses_m.avg:>6.3f})  '
                     f'Acc@1: {top1_m.val:>7.3f} ({top1_m.avg:>7.3f})  '
                     f'Acc@5: {top5_m.val:>7.3f} ({top5_m.avg:>7.3f})'
+                    f'precision: {prec_m.val:>7.3f} ({prec_m.avg:>7.3f})'
+                    f'recall: {rec_m.val:>7.3f} ({rec_m.avg:>7.3f})'
+                    f'soec: {spec_m.val:>7.3f} ({spec_m.avg:>7.3f})'
+                    f'f1: {f1_m.val:>7.3f} ({f1_m.avg:>7.3f})'
                 )
 
     metrics = OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])

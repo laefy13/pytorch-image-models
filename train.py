@@ -44,6 +44,8 @@ from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.utils import ApexScaler, NativeScaler
 from datetime import datetime
 
+import pandas as pd
+
 try:
     from apex import amp
     from apex.parallel import DistributedDataParallel as ApexDDP
@@ -236,7 +238,7 @@ group.add_argument('--warmup-prefix', action='store_true', default=False,
                    help='Exclude warmup period from decay schedule.'),
 group.add_argument('--cooldown-epochs', type=int, default=0, metavar='N',
                    help='epochs to cooldown LR at min_lr, after cyclic schedule ends')
-group.add_argument('--patience-epochs', type=int, default=10, metavar='N',
+group.add_argument('--patience-epochs', type=int, default=5, metavar='N',
                    help='patience epochs for Plateau LR scheduler (default: 10)')
 group.add_argument('--decay-rate', '--dr', type=float, default=0.1, metavar='RATE',
                    help='LR decay rate (default: 0.1)')
@@ -334,7 +336,7 @@ group.add_argument('--log-interval', type=int, default=50, metavar='N',
                    help='how many batches to wait before logging training status')
 group.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                    help='how many batches to wait before writing recovery checkpoint')
-group.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
+group.add_argument('--checkpoint-hist', type=int, default=3, metavar='N',
                    help='number of checkpoints to keep (default: 10)')
 group.add_argument('-j', '--workers', type=int, default=4, metavar='N',
                    help='how many training processes to use (default: 4)')
@@ -855,7 +857,16 @@ def main():
 
     if best_metric is not None:
         _logger.info('*** Best metric: {0} (epoch {1})'.format(best_metric, best_epoch))
-        
+    
+    df_comp = pd.read_csv('compilation.csv')
+    df_comp.append({'dep_mul':args['kwargs']['dep_mul'], 
+                    'wid_mul':args['kwargs']['chann_mul'],
+                    'res':args['input_size'],
+                    'epoch':best_epoch,
+                    'accuracy':best_metric})
+    df_comp.to_csv('compilation.csv')
+                    
+
     torch.cuda.empty_cache()
 
 def binary_classification_metrics(predictions, targets):
@@ -1136,7 +1147,6 @@ def validate(
                 )
 
     metrics = OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])
-
     return metrics
 
 

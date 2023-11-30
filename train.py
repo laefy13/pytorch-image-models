@@ -859,12 +859,30 @@ def main():
         _logger.info('*** Best metric: {0} (epoch {1})'.format(best_metric, best_epoch))
     
     df_comp = pd.read_csv('compilation.csv')
-    df_comp.append({'dep_mul':args['kwargs']['dep_mul'], 
-                    'wid_mul':args['kwargs']['chann_mul'],
-                    'res':args['input_size'],
-                    'epoch':best_epoch,
-                    'accuracy':best_metric})
-    df_comp.to_csv('compilation.csv')
+    print(args)
+    # print(args.kwargs)
+    if df_comp.empty:
+        index = [0]
+        df_comp = pd.DataFrame({
+                        'dep_mul':args.model_kwargs['dep_mult'], 
+                        'wid_mul':args.model_kwargs['chann_mult'],
+                        'res':args.input_size[1],
+                        'epoch':best_epoch,
+                        'accuracy':best_metric},index=index)
+    else :
+        # print(df_comp.tail(1).index.value())
+        # index = [int(df_comp.tail(1).index())+1]
+        new_row = pd.DataFrame({
+                        'dep_mul': args.model_kwargs['dep_mult'], 
+                        'wid_mul': args.model_kwargs['chann_mult'],
+                        'res': args.input_size[1],
+                        'epoch': best_epoch,
+                        'accuracy': best_metric
+                    }, index=[len(df_comp)])
+        print(new_row)
+        df_comp = df_comp.append(new_row, ignore_index=True)
+        print(df_comp)
+    df_comp.to_csv('compilation.csv',index=False)
                     
 
     torch.cuda.empty_cache()

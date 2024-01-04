@@ -56,6 +56,7 @@ def _search_split(root, split):
         root = _try(_TRAIN_SYNONYM)
     elif split_name in _EVAL_SYNONYM:
         root = _try(_EVAL_SYNONYM)
+    print(root)
     return root
 
 

@@ -11,6 +11,7 @@ import os
 import logging
 
 import torch
+import shutil
 
 from .model import unwrap_model, get_state_dict
 
@@ -75,7 +76,7 @@ class CheckpointSaver:
                 self._cleanup_checkpoints(1)
             filename = '-'.join([self.save_prefix, str(epoch)]) + self.extension
             save_path = os.path.join(self.checkpoint_dir, filename)
-            os.link(last_save_path, save_path)
+            shutil.copy(last_save_path, save_path)
             self.checkpoint_files.append((save_path, metric))
             self.checkpoint_files = sorted(
                 self.checkpoint_files, key=lambda x: x[1],
@@ -92,7 +93,7 @@ class CheckpointSaver:
                 best_save_path = os.path.join(self.checkpoint_dir, 'model_best' + self.extension)
                 if os.path.exists(best_save_path):
                     os.unlink(best_save_path)
-                os.link(last_save_path, best_save_path)
+                shutil.copy(last_save_path, best_save_path)
 
         return (None, None) if self.best_metric is None else (self.best_metric, self.best_epoch)
 
